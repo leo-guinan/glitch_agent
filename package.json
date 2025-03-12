@@ -1,0 +1,38 @@
+{
+  "name": "glitch-agents",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "mastra dev",
+    "build": "tsc && mastra build",
+    "deploy": "mastra deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "packageManager": "pnpm@8.15.9+sha512.499434c9d8fdd1a2794ebf4552b3b25c0a633abcee5bb15e7b5de90f32f47b513aca98cd5cfd001c31f0db454bc3804edccd578501e4ca293a6816166bbd9f81",
+  "dependencies": {
+    "@ai-sdk/openai": "^1.2.1",
+    "@mastra/core": "0.5.1-alpha.0",
+    "@mastra/deployer-cloudflare": "0.1.9-alpha.0",
+    "@mastra/deployer-vercel": "^0.1.8",
+    "@mastra/memory": "0.2.1-alpha.0",
+    "@mastra/pg": "^0.2.0",
+    "@mastra/upstash": "0.1.9-alpha.0",
+    "@upstash/redis": "^1.34.5",
+    "loops": "^4.0.0",
+    "mastra": "^0.2.8",
+    "openai": "^4.86.2",
+    "twitter-api-v2": "^1.20.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250311.0",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
