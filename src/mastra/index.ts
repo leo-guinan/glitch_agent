@@ -12,6 +12,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const logger = createLogger({
   name: 'Mastra',
   level: 'info',
+  
 });
 
 export const mastra = new Mastra({
