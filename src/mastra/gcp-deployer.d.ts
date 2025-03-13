@@ -12,7 +12,14 @@ export interface GCPDeployerOptions {
 }
 
 export class GCPDeployer extends MastraDeployer {
-  constructor(options: GCPDeployerOptions);
+  constructor(config: {
+    projectId: string;
+    zone: string;
+    instanceName: string;
+    machineType: string;
+    tags: string[];
+    metadata: Record<string, string>;
+  });
   prepare(): Promise<void>;
   bundle(): Promise<void>;
   writeInstrumentationFile(): Promise<void>;
