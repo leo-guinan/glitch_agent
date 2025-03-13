@@ -2,6 +2,7 @@ import express, { Request, Response, Router, RequestHandler } from 'express';
 import { validateApiKey, loadApiKeys } from './middleware/auth';
 import { mastra } from './index';
 
+// API request interfaces
 interface GenerateRequest {
   messages: Array<{
     content: string;

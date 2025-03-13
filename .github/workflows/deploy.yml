@@ -1,0 +1,59 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  GCP_PROJECT_ID: leoai-nexus-data-lake
+  GCP_ZONE: us-central1-a
+  GCP_INSTANCE_NAME: mastra-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }} .
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }}
+
+      - name: Deploy to GCP
+        run: |
+          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --command="docker pull gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }} && \
+                      docker stop mastra-app || true && \
+                      docker rm mastra-app || true && \
+                      docker run -d \
+                        --name mastra-app \
+                        --restart unless-stopped \
+                        -p 4111:4111 \
+                        -e API_KEYS=${{ secrets.API_KEYS }} \
+                        -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+                        -e GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }} \
+                        -e GCP_ZONE=${{ env.GCP_ZONE }} \
+                        -e GCP_INSTANCE_NAME=${{ env.GCP_INSTANCE_NAME }} \
+                        gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }}" 
