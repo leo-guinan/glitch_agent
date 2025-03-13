@@ -17,12 +17,15 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.2.1",
     "@mastra/core": "0.5.1-alpha.0",
-    "@mastra/deployer-cloudflare": "0.1.9-alpha.0",
+    "@mastra/deployer-netlify": "^0.1.8",
     "@mastra/deployer-vercel": "^0.1.8",
     "@mastra/memory": "0.2.1-alpha.0",
     "@mastra/pg": "^0.2.0",
     "@mastra/upstash": "0.1.9-alpha.0",
+    "@types/dotenv": "^8.2.3",
     "@upstash/redis": "^1.34.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "loops": "^4.0.0",
     "mastra": "^0.2.8",
     "openai": "^4.86.2",
@@ -30,7 +33,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250311.0",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.13.10",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"

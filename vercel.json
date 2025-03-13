@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "dist/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/index.js"
+    }
+  ],
+  "env": {
+    "VERCEL_TEAM_ID": "@vercel_team_id",
+    "VERCEL_PROJECT_NAME": "@vercel_project_name",
+    "VERCEL_TOKEN": "@vercel_token"
+  }
+} 

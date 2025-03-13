@@ -10,7 +10,6 @@
     "resolveJsonModule": true,
     "outDir": "dist",
     "jsx": "preserve",
-    "types": ["@cloudflare/workers-types"],
     "paths": {
       "@/*": ["./src/*"]
     }

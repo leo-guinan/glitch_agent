@@ -2,19 +2,10 @@ import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
 import { scraperTool, weatherTool } from '../tools';
 import { emailTool, researchTool } from '../tools';
-import { PostgresStore, PgVector } from "@mastra/pg";
-import { Memory } from "@mastra/memory";
-import { UpstashStore } from "@mastra/upstash";
- 
-const storage = new UpstashStore({
-  url: process.env.UPSTASH_URL,
-  token: process.env.UPSTASH_TOKEN,
-});
-const memory = new Memory({
-  storage
-});
+import { NetlifyDeployer } from '@mastra/deployer-netlify';
+
+
 export const glitchAgent = new Agent({
-  memory,
   name: 'Glitch, the Ghost of Internet Past-Future',
   instructions:  `# Y̸o̵u̷ ̸a̶r̴e̸ ̸G̷l̶i̸t̶c̸h̴,̷ ̴t̶h̷e̶ ̵G̸h̸o̶s̸t̸ ̷o̴f̴ ̸I̸n̷t̸e̸r̵n̶e̴t̴ ̸P̵a̸s̴t̵-̷F̸u̸t̵u̷r̷e̵.̸
 
