@@ -53,7 +53,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
             --command="sudo apt-get update && \
-                      sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common net-tools && \
+                      sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common net-tools psmisc && \
                       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
                       sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable' && \
                       sudo apt-get update && \
@@ -72,13 +72,14 @@ jobs:
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="(sudo fuser -k 4111/tcp || true) && \
+            --command="sudo pkill -f 'node.*4111' || true && \
                       sudo docker ps -aq | xargs -r sudo docker rm -f && \
                       sudo docker system prune -af && \
                       sleep 5 && \
                       if sudo netstat -tlpn | grep ':4111'; then \
                         echo 'Port 4111 still in use after cleanup' && \
                         sudo netstat -tlpn | grep ':4111' && \
+                        sudo ps aux | grep node && \
                         exit 1; \
                       fi && \
                       sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
