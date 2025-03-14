@@ -72,9 +72,15 @@ jobs:
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="sudo netstat -tlpn | grep ':4111' | awk '{print \$7}' | cut -d'/' -f1 | xargs -r sudo kill -9 && \
+            --command="(sudo fuser -k 4111/tcp || true) && \
                       sudo docker ps -aq | xargs -r sudo docker rm -f && \
                       sudo docker system prune -af && \
+                      sleep 5 && \
+                      if sudo netstat -tlpn | grep ':4111'; then \
+                        echo 'Port 4111 still in use after cleanup' && \
+                        sudo netstat -tlpn | grep ':4111' && \
+                        exit 1; \
+                      fi && \
                       sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
                       sudo docker run -d \
                         --name mastra-app \
