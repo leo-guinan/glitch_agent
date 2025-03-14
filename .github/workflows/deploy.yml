@@ -67,12 +67,14 @@ jobs:
             --zone=${{ env.GCP_ZONE }} \
             --command="echo ${{ steps.auth.outputs.access_token }} | sudo docker login -u oauth2accesstoken --password-stdin ${{ env.GCP_REGION }}-docker.pkg.dev"
 
-      - name: Deploy to GCP
+      - name: Cleanup Port and Deploy to GCP
         run: |
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
+            --command="sudo lsof -i :4111 | grep LISTEN | awk '{print \$2}' | xargs -r sudo kill -9 && \
+                      sudo docker system prune -f && \
+                      sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
                       sudo docker stop mastra-app || true && \
                       sudo docker rm mastra-app || true && \
                       sudo docker run -d \
