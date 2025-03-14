@@ -33,6 +33,11 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Setup SSH Keys
+        run: |
+          mkdir -p ~/.ssh
+          echo 'y' | gcloud compute config-ssh --project=${{ env.GCP_PROJECT_ID }} --quiet
+
       - name: Docker Auth
         run: |
           echo ${{ steps.auth.outputs.access_token }} | docker login -u oauth2accesstoken --password-stdin ${{ env.GCP_REGION }}-docker.pkg.dev
