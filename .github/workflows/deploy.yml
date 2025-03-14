@@ -38,7 +38,8 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/google_compute_engine
-          gcloud compute os-login ssh-keys add --key-file ~/.ssh/google_compute_engine
+          gcloud compute os-login ssh-keys add --key-file ~/.ssh/google_compute_engine.pub
+          chmod 600 ~/.ssh/google_compute_engine
 
       - name: Docker Auth
         run: |
