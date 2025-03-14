@@ -43,8 +43,14 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/google_compute_engine
-          gcloud compute os-login ssh-keys add --key-file ~/.ssh/google_compute_engine.pub
+          PUBLIC_KEY=$(cat ~/.ssh/google_compute_engine.pub)
+          gcloud compute instances add-metadata mastra-app \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --metadata=ssh-keys="runner:$PUBLIC_KEY"
           chmod 600 ~/.ssh/google_compute_engine
+          echo "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
 
       - name: Docker Auth
         run: |
@@ -58,17 +64,18 @@ jobs:
       - name: Install Docker on GCP Instance
         run: |
           for i in {1..3}; do
-            gcloud beta compute ssh mastra-app \
+            gcloud beta compute ssh runner@mastra-app \
               --project=${{ env.GCP_PROJECT_ID }} \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
+              --ssh-key-file=~/.ssh/google_compute_engine \
               --command="sudo apt-get update && \
                         sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common net-tools psmisc && \
                         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
                         sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable' && \
                         sudo apt-get update && \
                         sudo apt-get install -y docker-ce docker-ce-cli containerd.io && \
-                        sudo usermod -aG docker $USER" && break || \
+                        sudo usermod -aG docker runner" && break || \
             if [ $i -eq 3 ]; then
               echo "Failed after 3 retries" && exit 1
             fi
@@ -78,10 +85,11 @@ jobs:
       - name: Configure Docker on GCP Instance
         run: |
           for i in {1..3}; do
-            gcloud beta compute ssh mastra-app \
+            gcloud beta compute ssh runner@mastra-app \
               --project=${{ env.GCP_PROJECT_ID }} \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
+              --ssh-key-file=~/.ssh/google_compute_engine \
               --command="echo ${{ steps.auth.outputs.access_token }} | sudo docker login -u oauth2accesstoken --password-stdin ${{ env.GCP_REGION }}-docker.pkg.dev" && break || \
             if [ $i -eq 3 ]; then
               echo "Failed after 3 retries" && exit 1
@@ -92,10 +100,11 @@ jobs:
       - name: Cleanup Port and Deploy to GCP
         run: |
           for i in {1..3}; do
-            gcloud beta compute ssh mastra-app \
+            gcloud beta compute ssh runner@mastra-app \
               --project=${{ env.GCP_PROJECT_ID }} \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
+              --ssh-key-file=~/.ssh/google_compute_engine \
               --command="sudo pkill -f 'node.*4111' || true && \
                         sudo docker ps -aq | xargs -r sudo docker rm -f && \
                         sudo docker system prune -af && \
