@@ -36,11 +36,14 @@ jobs:
       - name: Setup SSH Keys
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           echo 'y' | gcloud compute config-ssh --project=${{ env.GCP_PROJECT_ID }} --quiet
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
+            --tunnel-through-iap \
             --command="echo 'Testing SSH connection'" \
+            --verbosity=debug \
             --troubleshoot || true
 
       - name: Docker Auth
@@ -58,6 +61,7 @@ jobs:
             gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
               --project=${{ env.GCP_PROJECT_ID }} \
               --zone=${{ env.GCP_ZONE }} \
+              --tunnel-through-iap \
               --command="sudo apt-get update && \
                         sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common net-tools psmisc && \
                         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
@@ -68,7 +72,7 @@ jobs:
             if [ $i -eq 3 ]; then
               echo "Failed after 3 retries" && exit 1
             fi
-            echo "Attempt $i failed. Waiting 10 seconds..." && sleep 10
+            echo "Attempt $i failed. Waiting 30 seconds..." && sleep 30
           done
 
       - name: Configure Docker on GCP Instance
@@ -77,11 +81,12 @@ jobs:
             gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
               --project=${{ env.GCP_PROJECT_ID }} \
               --zone=${{ env.GCP_ZONE }} \
+              --tunnel-through-iap \
               --command="echo ${{ steps.auth.outputs.access_token }} | sudo docker login -u oauth2accesstoken --password-stdin ${{ env.GCP_REGION }}-docker.pkg.dev" && break || \
             if [ $i -eq 3 ]; then
               echo "Failed after 3 retries" && exit 1
             fi
-            echo "Attempt $i failed. Waiting 10 seconds..." && sleep 10
+            echo "Attempt $i failed. Waiting 30 seconds..." && sleep 30
           done
 
       - name: Cleanup Port and Deploy to GCP
@@ -90,6 +95,7 @@ jobs:
             gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
               --project=${{ env.GCP_PROJECT_ID }} \
               --zone=${{ env.GCP_ZONE }} \
+              --tunnel-through-iap \
               --command="sudo pkill -f 'node.*4111' || true && \
                         sudo docker ps -aq | xargs -r sudo docker rm -f && \
                         sudo docker system prune -af && \
@@ -114,5 +120,5 @@ jobs:
             if [ $i -eq 3 ]; then
               echo "Failed after 3 retries" && exit 1
             fi
-            echo "Attempt $i failed. Waiting 10 seconds..." && sleep 10
+            echo "Attempt $i failed. Waiting 30 seconds..." && sleep 30
           done 
