@@ -10,6 +10,7 @@ env:
   GCP_PROJECT_ID: leoai-nexus-data-lake
   GCP_ZONE: us-central1-a
   GCP_INSTANCE_NAME: mastra-app
+  GCP_REGION: us-central1
 
 jobs:
   deploy:
@@ -32,19 +33,19 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }} .
-          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }}
+          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} .
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }}
 
       - name: Deploy to GCP
         run: |
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="docker pull gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }} && \
+            --command="docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
                       docker stop mastra-app || true && \
                       docker rm mastra-app || true && \
                       docker run -d \
@@ -56,4 +57,4 @@ jobs:
                         -e GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }} \
                         -e GCP_ZONE=${{ env.GCP_ZONE }} \
                         -e GCP_INSTANCE_NAME=${{ env.GCP_INSTANCE_NAME }} \
-                        gcr.io/${{ env.GCP_PROJECT_ID }}/mastra-app:${{ github.sha }}" 
+                        ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }}" 
