@@ -47,21 +47,41 @@ jobs:
           docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} .
           docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }}
 
+      - name: Install Docker on GCP Instance
+        run: |
+          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --command="sudo apt-get update && \
+                      sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common && \
+                      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
+                      sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable' && \
+                      sudo apt-get update && \
+                      sudo apt-get install -y docker-ce docker-ce-cli containerd.io && \
+                      sudo usermod -aG docker $USER"
+
+      - name: Configure Docker on GCP Instance
+        run: |
+          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --command="echo ${{ steps.auth.outputs.access_token }} | sudo docker login -u oauth2accesstoken --password-stdin ${{ env.GCP_REGION }}-docker.pkg.dev"
+
       - name: Deploy to GCP
         run: |
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
-                      docker stop mastra-app || true && \
-                      docker rm mastra-app || true && \
-                      docker run -d \
+            --command="sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
+                      sudo docker stop mastra-app || true && \
+                      sudo docker rm mastra-app || true && \
+                      sudo docker run -d \
                         --name mastra-app \
                         --restart unless-stopped \
                         -p 4111:4111 \
-                        -e API_KEYS=${{ secrets.API_KEYS }} \
-                        -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-                        -e GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }} \
-                        -e GCP_ZONE=${{ env.GCP_ZONE }} \
-                        -e GCP_INSTANCE_NAME=${{ env.GCP_INSTANCE_NAME }} \
+                        -e API_KEYS='${{ secrets.API_KEYS }}' \
+                        -e OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' \
+                        -e GCP_PROJECT_ID='${{ env.GCP_PROJECT_ID }}' \
+                        -e GCP_ZONE='${{ env.GCP_ZONE }}' \
+                        -e GCP_INSTANCE_NAME='${{ env.GCP_INSTANCE_NAME }}' \
                         ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }}" 
