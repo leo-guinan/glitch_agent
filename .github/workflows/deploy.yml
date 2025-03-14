@@ -53,7 +53,7 @@ jobs:
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
             --command="sudo apt-get update && \
-                      sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common && \
+                      sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common net-tools && \
                       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
                       sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable' && \
                       sudo apt-get update && \
@@ -72,11 +72,10 @@ jobs:
           gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} \
             --project=${{ env.GCP_PROJECT_ID }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="sudo lsof -i :4111 | grep LISTEN | awk '{print \$2}' | xargs -r sudo kill -9 && \
-                      sudo docker system prune -f && \
+            --command="sudo netstat -tlpn | grep ':4111' | awk '{print \$7}' | cut -d'/' -f1 | xargs -r sudo kill -9 && \
+                      sudo docker ps -aq | xargs -r sudo docker rm -f && \
+                      sudo docker system prune -af && \
                       sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} && \
-                      sudo docker stop mastra-app || true && \
-                      sudo docker rm mastra-app || true && \
                       sudo docker run -d \
                         --name mastra-app \
                         --restart unless-stopped \
