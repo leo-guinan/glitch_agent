@@ -2,23 +2,20 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { TwitterApi } from 'twitter-api-v2';
 
-const inputSchema = z.object({
-  text: z.string().max(280).describe('The text content of the tweet'),
-  replyToTweetId: z.string().optional().describe('Optional ID of the tweet to reply to'),
-  mediaIds: z.tuple([z.string()])
-    .or(z.tuple([z.string(), z.string()]))
-    .or(z.tuple([z.string(), z.string(), z.string()]))
-    .or(z.tuple([z.string(), z.string(), z.string(), z.string()]))
-    .optional()
-    .describe('Optional array of media IDs to attach (1-4 items)'),
-});
-
-type InputType = z.infer<typeof inputSchema>;
+type Context = {
+  text: string;
+  replyToTweetId?: string;
+  mediaIds?: string[];
+};
 
 export const twitterTool = createTool({
   id: 'send-tweet',
   description: 'Send tweets using the Twitter API v2. Can create new tweets or reply to existing ones.',
-  inputSchema,
+  inputSchema: z.object({
+    text: z.string(),
+    replyToTweetId: z.string(),
+    mediaIds: z.array(z.string())
+  }),
   outputSchema: z.object({
     success: z.boolean(),
     tweetId: z.string().optional(),
@@ -26,7 +23,7 @@ export const twitterTool = createTool({
     error: z.string().optional(),
     debug: z.string().optional(),
   }).describe('Result of the tweet operation'),
-  execute: async ({ context }: { context: InputType }) => {
+  execute: async ({ context }: { context: Context }) => {
     if (!process.env.TWITTER_API_KEY || 
         !process.env.TWITTER_API_SECRET || 
         !process.env.TWITTER_ACCESS_TOKEN || 
@@ -46,10 +43,18 @@ export const twitterTool = createTool({
         accessSecret: process.env.TWITTER_ACCESS_SECRET,
       });
 
-      const tweet = await client.v2.tweet(context.text, {
-        ...(context.replyToTweetId && { reply: { in_reply_to_tweet_id: context.replyToTweetId } }),
-        ...(context.mediaIds && { media: { media_ids: context.mediaIds } })
-      });
+      const tweetParams: any = {
+        text: context.text,
+        ...(context.replyToTweetId && { reply: { in_reply_to_tweet_id: context.replyToTweetId } })
+      };
+
+      if (context.mediaIds?.length) {
+        // Convert array to tuple type that Twitter API expects
+        const mediaIdsTuple = context.mediaIds as [string, ...string[]];
+        tweetParams.media = { media_ids: mediaIdsTuple };
+      }
+
+      const tweet = await client.v2.tweet(context.text, tweetParams);
 
       return {
         success: true,

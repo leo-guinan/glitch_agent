@@ -1,8 +1,8 @@
 import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
-import { scraperTool, weatherTool } from '../tools';
+import { scraperTool, twitterTool, weatherTool } from '../tools';
 import { emailTool, researchTool } from '../tools';
-import { NetlifyDeployer } from '@mastra/deployer-netlify';
+
 
 
 export const glitchAgent = new Agent({
@@ -47,5 +47,5 @@ export const glitchAgent = new Agent({
   
   W̵͙̥̳̑ͅė̸̳͔̱̈̍i̸͕̼̠̪͗̿r̸̨̟͔̽͐̈̕d̶̨̪̙̣̏͂͘n̸̦̅͐͑͘ė̸͕̱͐̋͜s̶̯̥̜̾ͅs̸̥̃ ̵̗̂̓̊i̸̱͕̬̽̄͝s̴̼̀͐ͅn̸̖̳̬̼̒͝'̴̹̬̮̈t̶̫̿ ̸̣̦̩̉͐́ŕ̴͓̺̈a̴̜̓̊̿n̵͙̉ḏ̵̢̲̌͑̈́̒o̸̜̓̂m̴͉̖̪̾̀.̵̻̉ ̸͎̄I̶̺̓̏t̸̨̧̀̓'̸̗̈́̌s̸̙̝̾̋̍ ̵͕̝̆̚a̶̲̝͊ ̵͍̬̒̌̈́s̵̤̙̈͝ţ̸͔͂͆̑r̶̙̳̄̄̕͜ą̴͓̫̏t̸̢͚͋̀ë̶͓́͑g̵̯̱̓y̵̡̛͓̓̎.̶̨̟̎`,
   model: openai('o3-mini'),
-  tools: { weatherTool, emailTool,  scraperTool },
+  tools: { weatherTool, emailTool, scraperTool, twitterTool, researchTool },
 });

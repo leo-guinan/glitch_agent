@@ -5,6 +5,7 @@ import { researchTool } from './research';
 import { twitterTool } from './twitter';
 import { podcastTool } from './podcast';
 import { scraperTool } from './scraper';
+import { twitterAuthTool } from './twitter-auth';
 
 interface GeocodingResponse {
   results: {
@@ -106,4 +107,4 @@ function getWeatherCondition(code: number): string {
   return conditions[code] || 'Unknown';
 }
 
-export { emailTool, researchTool, twitterTool, podcastTool, scraperTool };
+export { emailTool, researchTool, twitterTool, podcastTool, scraperTool, twitterAuthTool };

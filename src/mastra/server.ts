@@ -1,6 +1,7 @@
 import express, { Request, Response, Router, RequestHandler } from 'express';
 import { validateApiKey, loadApiKeys } from './middleware/auth';
 import { mastra } from './index';
+import { twitterAuthRouter } from './routes/twitter-auth';
 
 // API request interfaces
 interface GenerateRequest {
@@ -38,6 +39,9 @@ const healthCheck: RequestHandler = (_req, res) => {
   res.json({ status: 'ok' });
 };
 app.get('/health', healthCheck);
+
+// Twitter auth routes (no auth required)
+app.use('/twitter', twitterAuthRouter);
 
 // Apply API key validation to all /api routes
 const apiRouter = Router();
