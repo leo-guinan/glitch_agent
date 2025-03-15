@@ -119,22 +119,17 @@ jobs:
 
       - name: Deploy to Instance
         run: |
-          # Setup SSH
-          mkdir -p ~/.ssh
-          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > ~/.ssh/google_compute_engine
-          chmod 600 ~/.ssh/google_compute_engine
-          echo "${{ secrets.GCP_SSH_PUBLIC_KEY }}" > ~/.ssh/google_compute_engine.pub
-          echo -e "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null" > ~/.ssh/config
-
-          # Copy and execute deploy script
-          gcloud compute scp deploy.sh ${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh --zone=${{ env.GCP_ZONE }}
-          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'bash ~/deploy.sh'
+          # Copy deploy script
+          gcloud beta compute scp deploy.sh ${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh --zone=${{ env.GCP_ZONE }}
+          
+          # Execute deploy script
+          gcloud beta compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
           # Wait for instance to be reachable
           for i in {1..10}; do
-            if gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'curl -s http://localhost:4111/health'; then
+            if gcloud beta compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -142,5 +137,5 @@ jobs:
             sleep 30
           done
           echo "Failed to verify deployment"
-          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'sudo docker logs mastra-app'
+          gcloud beta compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'sudo docker logs mastra-app'
           exit 1 
