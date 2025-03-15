@@ -29,6 +29,8 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
+          create_credentials_file: true
+          export_environment_variables: true
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -47,6 +49,23 @@ jobs:
             --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
             -t ${IMAGE_TAG} .
           docker push ${IMAGE_TAG}
+
+      - name: Setup OS Login
+        run: |
+          # Enable OS Login for the instance
+          gcloud compute instances add-metadata ${{ env.GCP_INSTANCE_NAME }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --metadata enable-oslogin=TRUE
+
+          # Grant OS Login IAM role to service account
+          gcloud projects add-iam-policy-binding ${{ env.GCP_PROJECT_ID }} \
+            --member="serviceAccount:${{ secrets.GCP_SA_EMAIL }}" \
+            --role="roles/compute.osLogin"
+
+          # Grant OS Admin role for sudo access
+          gcloud projects add-iam-policy-binding ${{ env.GCP_PROJECT_ID }} \
+            --member="serviceAccount:${{ secrets.GCP_SA_EMAIL }}" \
+            --role="roles/compute.osAdminLogin"
 
       - name: Generate Deploy Script
         run: |
@@ -119,23 +138,44 @@ jobs:
 
       - name: Deploy to Instance
         run: |
+          # Get the OS Login username for the service account
+          SA_EMAIL=${{ secrets.GCP_SA_EMAIL }}
+          SA_USERNAME=$(echo $SA_EMAIL | tr '@.' '_')
+          
           # Copy deploy script
-          gcloud beta compute scp deploy.sh ${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh --zone=${{ env.GCP_ZONE }}
+          gcloud beta compute scp --quiet \
+            --zone=${{ env.GCP_ZONE }} \
+            --tunnel-through-iap \
+            deploy.sh ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
-          gcloud beta compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'bash ~/deploy.sh'
+          gcloud beta compute ssh --quiet \
+            --zone=${{ env.GCP_ZONE }} \
+            --tunnel-through-iap \
+            ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
+          # Get the OS Login username for the service account
+          SA_EMAIL=${{ secrets.GCP_SA_EMAIL }}
+          SA_USERNAME=$(echo $SA_EMAIL | tr '@.' '_')
+          
           # Wait for instance to be reachable
           for i in {1..10}; do
-            if gcloud beta compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'curl -s http://localhost:4111/health'; then
+            if gcloud beta compute ssh --quiet \
+              --zone=${{ env.GCP_ZONE }} \
+              --tunnel-through-iap \
+              ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
             echo "Waiting for deployment verification... attempt $i"
             sleep 30
           done
+          
           echo "Failed to verify deployment"
-          gcloud beta compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'sudo docker logs mastra-app'
+          gcloud beta compute ssh --quiet \
+            --zone=${{ env.GCP_ZONE }} \
+            --tunnel-through-iap \
+            ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
           exit 1 
