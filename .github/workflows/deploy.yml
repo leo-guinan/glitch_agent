@@ -11,6 +11,7 @@ env:
   GCP_ZONE: us-central1-a
   GCP_INSTANCE_NAME: mastra-app
   GCP_REGION: us-central1
+  IMAGE_NAME: mastra-app
 
 jobs:
   deploy:
@@ -28,70 +29,66 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
-          token_format: access_token
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: 'beta'
 
-      - name: Install gcloud beta
+      - name: Configure Docker for Artifact Registry
         run: |
-          gcloud components install beta --quiet
-          gcloud components update
-
-      - name: Setup SSH Keys
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/google_compute_engine
-          PUBLIC_KEY=$(cat ~/.ssh/google_compute_engine.pub)
-          gcloud compute instances add-metadata mastra-app \
-            --project=${{ env.GCP_PROJECT_ID }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --metadata=ssh-keys="sa_108021618259102911541:$PUBLIC_KEY"
-          chmod 600 ~/.ssh/google_compute_engine
-          echo -e "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null" > ~/.ssh/config
-          chmod 600 ~/.ssh/config
-
-      - name: Docker Auth
-        run: |
-          echo ${{ steps.auth.outputs.access_token }} | docker login -u oauth2accesstoken --password-stdin ${{ env.GCP_REGION }}-docker.pkg.dev
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }} .
-          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }}
+          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}/app:${{ github.sha }}"
+          docker build \
+            --build-arg COMMIT_SHA=${{ github.sha }} \
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+            -t ${IMAGE_TAG} .
+          docker push ${IMAGE_TAG}
 
-      - name: Setup and Deploy
+      - name: Generate Deploy Script
         run: |
-          # Create setup script
-          cat > setup.sh << 'EOF'
+          cat > deploy.sh << 'EOF'
           #!/bin/bash
-          # Install Docker
-          sudo apt-get update
-          sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common net-tools psmisc
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable'
-          sudo apt-get update
-          sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+          set -euo pipefail
 
-          # Stop any process using port 4111
-          sudo pkill -f 'node.*4111' || true
-          sudo docker ps -aq | xargs -r sudo docker rm -f
-          sudo docker system prune -af
+          # Function to check if port is in use
+          check_port() {
+            if sudo lsof -i :4111; then
+              echo "Port 4111 is still in use"
+              return 1
+            fi
+            return 0
+          }
 
-          # Check if port is still in use
-          if sudo netstat -tlpn | grep ':4111'; then
-            echo 'Port 4111 still in use after cleanup'
-            sudo netstat -tlpn | grep ':4111'
-            sudo ps aux | grep node
-            exit 1
+          # Install or update Docker
+          if ! command -v docker &> /dev/null; then
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
           fi
 
-          # Run new container
+          # Stop existing containers
+          sudo docker ps -q | xargs -r sudo docker stop
+          sudo docker ps -aq | xargs -r sudo docker rm
+
+          # Wait for port to be free
+          for i in {1..5}; do
+            if check_port; then
+              break
+            fi
+            echo "Waiting for port 4111 to be free... attempt $i"
+            sleep 5
+          done
+
+          # Pull and run new container
+          sudo docker pull ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}/app:${{ github.sha }}
           sudo docker run -d \
             --name mastra-app \
             --restart unless-stopped \
             -p 4111:4111 \
+            --log-driver=gcplogs \
             -e API_KEYS='${{ secrets.API_KEYS }}' \
             -e OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' \
             -e GCP_PROJECT_ID='${{ env.GCP_PROJECT_ID }}' \
@@ -101,31 +98,49 @@ jobs:
             -e TWITTER_API_SECRET='${{ secrets.TWITTER_API_SECRET }}' \
             -e TWITTER_ACCESS_TOKEN='${{ secrets.TWITTER_ACCESS_TOKEN }}' \
             -e TWITTER_ACCESS_SECRET='${{ secrets.TWITTER_ACCESS_SECRET }}' \
-            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/mastra-app/app:${{ github.sha }}
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}/app:${{ github.sha }}
+
+          # Wait for container to be healthy
+          for i in {1..30}; do
+            if curl -s http://localhost:4111/health > /dev/null; then
+              echo "Application is healthy"
+              exit 0
+            fi
+            echo "Waiting for application to be healthy... attempt $i"
+            sleep 5
+          done
+
+          echo "Application failed to become healthy"
+          sudo docker logs mastra-app
+          exit 1
           EOF
 
-          chmod +x setup.sh
+          chmod +x deploy.sh
 
-          # Upload script to GCS
-          BUCKET_NAME="${{ env.GCP_PROJECT_ID }}-setup-scripts"
-          gsutil mb -p ${{ env.GCP_PROJECT_ID }} gs://${BUCKET_NAME} || true
-          gsutil cp setup.sh gs://${BUCKET_NAME}/setup.sh
+      - name: Deploy to Instance
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > ~/.ssh/google_compute_engine
+          chmod 600 ~/.ssh/google_compute_engine
+          echo "${{ secrets.GCP_SSH_PUBLIC_KEY }}" > ~/.ssh/google_compute_engine.pub
+          echo -e "Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile=/dev/null" > ~/.ssh/config
 
-          # Set metadata to run script
-          gcloud compute instances add-metadata mastra-app \
-            --project=${{ env.GCP_PROJECT_ID }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --metadata=startup-script-url=gs://${BUCKET_NAME}/setup.sh
+          # Copy and execute deploy script
+          gcloud compute scp deploy.sh ${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh --zone=${{ env.GCP_ZONE }}
+          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'bash ~/deploy.sh'
 
-          # Reset instance to run script
-          gcloud compute instances reset mastra-app \
-            --project=${{ env.GCP_PROJECT_ID }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --quiet
-
-          # Wait for instance to come up and script to complete
-          echo "Waiting for instance to come up and script to complete..."
-          sleep 120
-
-          # Clean up
-          gsutil rm gs://${BUCKET_NAME}/setup.sh 
+      - name: Verify Deployment
+        run: |
+          # Wait for instance to be reachable
+          for i in {1..10}; do
+            if gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'curl -s http://localhost:4111/health'; then
+              echo "Deployment verified successfully"
+              exit 0
+            fi
+            echo "Waiting for deployment verification... attempt $i"
+            sleep 30
+          done
+          echo "Failed to verify deployment"
+          gcloud compute ssh ${{ env.GCP_INSTANCE_NAME }} --zone=${{ env.GCP_ZONE }} -- 'sudo docker logs mastra-app'
+          exit 1 
