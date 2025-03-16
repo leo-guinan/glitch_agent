@@ -1,13 +1,20 @@
 import express from 'express';
 import { mastra } from './mastra';
+import { apiRouter } from './mastra/server';
 
 const app = express();
 const port = process.env.PORT || 4111;
+
+// Parse JSON bodies
+app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
+
+// Mount API routes
+app.use('/api', apiRouter);
 
 // Start server
 app.listen(port, () => {

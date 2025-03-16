@@ -75,6 +75,8 @@ const generateResponse: RequestHandler<
 
 apiRouter.post('/agents/:agentId/generate', generateResponse);
 
+export { apiRouter };
+
 // Mount API routes
 app.use('/api', apiRouter);
 
