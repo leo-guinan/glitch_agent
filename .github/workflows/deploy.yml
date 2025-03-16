@@ -54,7 +54,7 @@ jobs:
         run: |
           # Generate SSH key
           mkdir -p ~/.ssh
-          ssh-keygen -t rsa -b 4096 -C "github-actions" -f ~/.ssh/id_rsa -N ""
+          ssh-keygen -t rsa -b 4096 -C "leo@ideanexusventures.com" -f ~/.ssh/id_rsa -N ""
           
           # Get the current metadata
           METADATA=$(gcloud compute instances describe ${{ env.GCP_INSTANCE_NAME }} \
@@ -62,7 +62,7 @@ jobs:
             --format='get(metadata.items[?(@.key=="ssh-keys")].value)' || echo "")
           
           # Append new SSH key
-          NEW_KEY="github-actions:$(cat ~/.ssh/id_rsa.pub)"
+          NEW_KEY="leo:$(cat ~/.ssh/id_rsa.pub)"
           if [ -z "$METADATA" ]; then
             FINAL_KEYS="$NEW_KEY"
           else
@@ -163,13 +163,13 @@ jobs:
           scp -i ~/.ssh/id_rsa \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            deploy.sh github-actions@${INSTANCE_IP}:~/deploy.sh
+            deploy.sh leo@${INSTANCE_IP}:~/deploy.sh
           
           # Execute deploy script
           ssh -i ~/.ssh/id_rsa \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            github-actions@${INSTANCE_IP} 'bash ~/deploy.sh'
+            leo@${INSTANCE_IP} 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
@@ -183,7 +183,7 @@ jobs:
             if ssh -i ~/.ssh/id_rsa \
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              github-actions@${INSTANCE_IP} 'curl -s http://localhost:4111/health'; then
+              leo@${INSTANCE_IP} 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -195,5 +195,5 @@ jobs:
           ssh -i ~/.ssh/id_rsa \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            github-actions@${INSTANCE_IP} 'sudo docker logs mastra-app'
+            leo@${INSTANCE_IP} 'sudo docker logs mastra-app'
           exit 1 
