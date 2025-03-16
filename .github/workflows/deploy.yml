@@ -125,26 +125,29 @@ jobs:
           gcloud config set compute/zone ${{ env.GCP_ZONE }}
           gcloud config set project ${{ env.GCP_PROJECT_ID }}
           
-          # Copy deploy script using your account
-          gcloud beta compute scp --quiet \
-            --zone=${{ env.GCP_ZONE }} \
-            --tunnel-through-iap \
-            deploy.sh leo@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
+          # Encode deploy script in base64
+          DEPLOY_SCRIPT_B64=$(base64 -w 0 deploy.sh)
           
-          # Execute deploy script
-          gcloud beta compute ssh --quiet \
-            --zone=${{ env.GCP_ZONE }} \
-            --tunnel-through-iap \
-            leo@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
+          # Add deploy script to instance metadata
+          gcloud compute instances add-metadata ${{ env.GCP_INSTANCE_NAME }} \
+            --metadata-from-file=startup-script=deploy.sh \
+            --metadata deploy-script="${DEPLOY_SCRIPT_B64}" \
+            --metadata deploy-trigger="$(date +%s)"
+          
+          # Reset the instance to trigger the startup script
+          gcloud compute instances reset ${{ env.GCP_INSTANCE_NAME }} \
+            --zone=${{ env.GCP_ZONE }}
 
       - name: Verify Deployment
         run: |
-          # Wait for instance to be reachable
+          # Wait for instance to be ready
+          echo "Waiting for instance to start..."
+          sleep 60
+          
+          # Check deployment status using instance serial port output
           for i in {1..10}; do
-            if gcloud beta compute ssh --quiet \
-              --zone=${{ env.GCP_ZONE }} \
-              --tunnel-through-iap \
-              leo@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
+            if gcloud compute instances get-serial-port-output ${{ env.GCP_INSTANCE_NAME }} \
+              --zone=${{ env.GCP_ZONE }} | grep -q "Application is healthy"; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -153,8 +156,6 @@ jobs:
           done
           
           echo "Failed to verify deployment"
-          gcloud beta compute ssh --quiet \
-            --zone=${{ env.GCP_ZONE }} \
-            --tunnel-through-iap \
-            leo@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
+          gcloud compute instances get-serial-port-output ${{ env.GCP_INSTANCE_NAME }} \
+            --zone=${{ env.GCP_ZONE }} | tail -n 50
           exit 1 
