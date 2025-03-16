@@ -130,9 +130,7 @@ jobs:
           
           # Add deploy script to instance metadata
           gcloud compute instances add-metadata ${{ env.GCP_INSTANCE_NAME }} \
-            --metadata-from-file=startup-script=deploy.sh \
-            --metadata deploy-script="${DEPLOY_SCRIPT_B64}" \
-            --metadata deploy-trigger="$(date +%s)"
+            --metadata=startup-script="$(cat deploy.sh)",deploy-script="${DEPLOY_SCRIPT_B64}",deploy-trigger="$(date +%s)"
           
           # Reset the instance to trigger the startup script
           gcloud compute instances reset ${{ env.GCP_INSTANCE_NAME }} \
