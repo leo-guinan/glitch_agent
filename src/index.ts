@@ -1,5 +1,5 @@
 import express from 'express';
-import { mastra } from './mastra';
+import { mastra } from './mastra/index.js';
 
 const app = express();
 const port = process.env.PORT || 4111;

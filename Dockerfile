@@ -10,15 +10,11 @@ RUN apt-get update && \
 # Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy package files
-COPY package*.json ./
-COPY pnpm-lock.yaml ./
+# Copy all source files first
+COPY . .
 
 # Install dependencies
 RUN pnpm install
-
-# Copy source code
-COPY . .
 
 # Build the application
 RUN pnpm run build
