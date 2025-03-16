@@ -126,16 +126,16 @@ jobs:
           gcloud config set project ${{ env.GCP_PROJECT_ID }}
           
           # Get OS Login user
-          OS_LOGIN_USER=$(gcloud compute os-login describe-profile --format='get(posixAccounts[0].username)')
+          OS_LOGIN_USER=$(gcloud beta compute os-login describe-profile --format='get(posixAccounts[0].username)')
           
           # Copy deploy script
-          gcloud compute scp --quiet \
+          gcloud beta compute scp --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
             deploy.sh ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
-          gcloud compute ssh --quiet \
+          gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
             ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
@@ -143,11 +143,11 @@ jobs:
       - name: Verify Deployment
         run: |
           # Get OS Login user
-          OS_LOGIN_USER=$(gcloud compute os-login describe-profile --format='get(posixAccounts[0].username)')
+          OS_LOGIN_USER=$(gcloud beta compute os-login describe-profile --format='get(posixAccounts[0].username)')
           
           # Wait for instance to be reachable
           for i in {1..10}; do
-            if gcloud compute ssh --quiet \
+            if gcloud beta compute ssh --quiet \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
               ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
@@ -159,7 +159,7 @@ jobs:
           done
           
           echo "Failed to verify deployment"
-          gcloud compute ssh --quiet \
+          gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
             ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
