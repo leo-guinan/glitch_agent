@@ -128,16 +128,19 @@ jobs:
           # Create a startup script that will decode and run the deploy script
           cat > startup.sh << 'EOF'
           #!/bin/bash
+          DEPLOY_SCRIPT_B64=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/deploy-script-b64" -H "Metadata-Flavor: Google")
           echo "$DEPLOY_SCRIPT_B64" | base64 -d > /tmp/deploy.sh
           chmod +x /tmp/deploy.sh
           bash /tmp/deploy.sh
           EOF
           
-          # Add startup script to instance metadata
+          # Add startup script and deploy script to instance metadata
+          STARTUP_SCRIPT=$(cat startup.sh)
+          DEPLOY_SCRIPT_B64=$(cat deploy.sh | base64 -w 0)
+          DEPLOY_TRIGGER=$(date +%s)
+          
           gcloud compute instances add-metadata ${{ env.GCP_INSTANCE_NAME }} \
-            --metadata=startup-script="$(cat startup.sh)" \
-            --metadata=deploy-script-b64="$(cat deploy.sh | base64 -w 0)" \
-            --metadata=deploy-trigger="$(date +%s)"
+            --metadata="startup-script=$STARTUP_SCRIPT,deploy-script-b64=$DEPLOY_SCRIPT_B64,deploy-trigger=$DEPLOY_TRIGGER"
           
           # Reset the instance to trigger the startup script
           gcloud compute instances reset ${{ env.GCP_INSTANCE_NAME }} \
