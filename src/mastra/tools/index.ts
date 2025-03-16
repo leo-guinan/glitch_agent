@@ -1,11 +1,11 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { emailTool } from './email.js';
-import { researchTool } from './research.js';
-import { twitterTool } from './twitter.js';
-import { podcastTool } from './podcast.js';
-import { scraperTool } from './scraper.js';
-import { twitterAuthTool } from './twitter-auth.js';
+import { emailTool } from './email';
+import { researchTool } from './research';
+import { twitterTool } from './twitter';
+import { podcastTool } from './podcast';
+import { scraperTool } from './scraper';
+import { twitterAuthTool } from './twitter-auth';
 
 interface GeocodingResponse {
   results: {

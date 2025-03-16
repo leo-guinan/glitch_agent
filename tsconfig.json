@@ -1,22 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": false,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "baseUrl": ".",
-    "paths": {
-      "@mastra/core/*": ["node_modules/@mastra/core/dist/*"]
-    }
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".mastra"
+  ]
 }
