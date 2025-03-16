@@ -50,39 +50,6 @@ jobs:
             -t ${IMAGE_TAG} .
           docker push ${IMAGE_TAG}
 
-      - name: Setup SSH Access
-        run: |
-          # Generate SSH key
-          mkdir -p ~/.ssh
-          ssh-keygen -t rsa -b 4096 -C "635202209750-compute@developer.gserviceaccount.com" -f ~/.ssh/id_rsa -N ""
-          
-          # Get the current metadata
-          METADATA=$(gcloud compute instances describe ${{ env.GCP_INSTANCE_NAME }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --format='get(metadata.items[?(@.key=="ssh-keys")].value)' || echo "")
-          
-          # Append new SSH key
-          NEW_KEY="sa_635202209750_compute_developer_gserviceaccount_com:$(cat ~/.ssh/id_rsa.pub)"
-          if [ -z "$METADATA" ]; then
-            FINAL_KEYS="$NEW_KEY"
-          else
-            FINAL_KEYS="$METADATA\n$NEW_KEY"
-          fi
-          
-          # Update instance metadata
-          echo -e "$FINAL_KEYS" > ssh_keys.txt
-          gcloud compute instances add-metadata ${{ env.GCP_INSTANCE_NAME }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --metadata-from-file ssh-keys=ssh_keys.txt
-          
-          # Configure SSH
-          cat > ~/.ssh/config << EOF
-          Host *
-            StrictHostKeyChecking no
-            UserKnownHostsFile=/dev/null
-          EOF
-          chmod 600 ~/.ssh/config
-
       - name: Generate Deploy Script
         run: |
           cat > deploy.sh << 'EOF'
@@ -154,36 +121,23 @@ jobs:
 
       - name: Deploy to Instance
         run: |
-          # Get instance IP
-          INSTANCE_IP=$(gcloud compute instances describe ${{ env.GCP_INSTANCE_NAME }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-          
           # Copy deploy script
-          scp -i ~/.ssh/id_rsa \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            deploy.sh sa_635202209750_compute_developer_gserviceaccount_com@${INSTANCE_IP}:~/deploy.sh
+          gcloud compute scp --quiet \
+            --zone=${{ env.GCP_ZONE }} \
+            deploy.sh ${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
-          ssh -i ~/.ssh/id_rsa \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            sa_635202209750_compute_developer_gserviceaccount_com@${INSTANCE_IP} 'bash ~/deploy.sh'
+          gcloud compute ssh --quiet \
+            --zone=${{ env.GCP_ZONE }} \
+            ${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
-          # Get instance IP
-          INSTANCE_IP=$(gcloud compute instances describe ${{ env.GCP_INSTANCE_NAME }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-          
           # Wait for instance to be reachable
           for i in {1..10}; do
-            if ssh -i ~/.ssh/id_rsa \
-              -o StrictHostKeyChecking=no \
-              -o UserKnownHostsFile=/dev/null \
-              sa_635202209750_compute_developer_gserviceaccount_com@${INSTANCE_IP} 'curl -s http://localhost:4111/health'; then
+            if gcloud compute ssh --quiet \
+              --zone=${{ env.GCP_ZONE }} \
+              ${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -192,8 +146,7 @@ jobs:
           done
           
           echo "Failed to verify deployment"
-          ssh -i ~/.ssh/id_rsa \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            sa_635202209750_compute_developer_gserviceaccount_com@${INSTANCE_IP} 'sudo docker logs mastra-app'
+          gcloud compute ssh --quiet \
+            --zone=${{ env.GCP_ZONE }} \
+            ${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
           exit 1 
