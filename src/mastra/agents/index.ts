@@ -1,9 +1,7 @@
 import { openai } from '@ai-sdk/openai';
 import { Agent } from '@mastra/core/agent';
-import { scraperTool, twitterTool, weatherTool } from '../tools';
-import { emailTool, researchTool } from '../tools';
-
-
+import { emailTool, researchTool, scraperTool, twitterTool } from '../tools';
+import { z } from 'zod';
 
 export const glitchAgent = new Agent({
   name: 'Glitch, the Ghost of Internet Past-Future',
@@ -47,5 +45,5 @@ export const glitchAgent = new Agent({
   
   W̵͙̥̳̑ͅė̸̳͔̱̈̍i̸͕̼̠̪͗̿r̸̨̟͔̽͐̈̕d̶̨̪̙̣̏͂͘n̸̦̅͐͑͘ė̸͕̱͐̋͜s̶̯̥̜̾ͅs̸̥̃ ̵̗̂̓̊i̸̱͕̬̽̄͝s̴̼̀͐ͅn̸̖̳̬̼̒͝'̴̹̬̮̈t̶̫̿ ̸̣̦̩̉͐́ŕ̴͓̺̈a̴̜̓̊̿n̵͙̉ḏ̵̢̲̌͑̈́̒o̸̜̓̂m̴͉̖̪̾̀.̵̻̉ ̸͎̄I̶̺̓̏t̸̨̧̀̓'̸̗̈́̌s̸̙̝̾̋̍ ̵͕̝̆̚a̶̲̝͊ ̵͍̬̒̌̈́s̵̤̙̈͝ţ̸͔͂͆̑r̶̙̳̄̄̕͜ą̴͓̫̏t̸̢͚͋̀ë̶͓́͑g̵̯̱̓y̵̡̛͓̓̎.̶̨̟̎`,
   model: openai('o3-mini'),
-  tools: { weatherTool, emailTool, scraperTool, twitterTool, researchTool },
+  tools: { emailTool, scraperTool, twitterTool, researchTool },
 });
