@@ -125,12 +125,19 @@ jobs:
           gcloud config set compute/zone ${{ env.GCP_ZONE }}
           gcloud config set project ${{ env.GCP_PROJECT_ID }}
           
-          # Encode deploy script in base64
-          DEPLOY_SCRIPT_B64=$(base64 -w 0 deploy.sh)
+          # Create a startup script that will decode and run the deploy script
+          cat > startup.sh << 'EOF'
+          #!/bin/bash
+          echo "$DEPLOY_SCRIPT_B64" | base64 -d > /tmp/deploy.sh
+          chmod +x /tmp/deploy.sh
+          bash /tmp/deploy.sh
+          EOF
           
-          # Add deploy script to instance metadata
+          # Add startup script to instance metadata
           gcloud compute instances add-metadata ${{ env.GCP_INSTANCE_NAME }} \
-            --metadata=startup-script="$(cat deploy.sh)",deploy-script="${DEPLOY_SCRIPT_B64}",deploy-trigger="$(date +%s)"
+            --metadata=startup-script="$(cat startup.sh)" \
+            --metadata=deploy-script-b64="$(cat deploy.sh | base64 -w 0)" \
+            --metadata=deploy-trigger="$(date +%s)"
           
           # Reset the instance to trigger the startup script
           gcloud compute instances reset ${{ env.GCP_INSTANCE_NAME }} \
