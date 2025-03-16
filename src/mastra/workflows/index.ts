@@ -167,6 +167,6 @@ const glitchWorkflow = new Workflow({
   .step(fetchWeather)
   .then(planActivities);
 
-  glitchWorkflow.commit();
+glitchWorkflow.commit();
 
-export { glitchWorkflow };
+export default glitchWorkflow;
