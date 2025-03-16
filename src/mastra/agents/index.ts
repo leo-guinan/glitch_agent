@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai';
-import { Agent } from '@mastra/core/agent/index.js';
-import { emailTool, researchTool, scraperTool, twitterTool } from '../tools/index.js';
+import { Agent } from '@mastra/core/agent';
+import { emailTool, researchTool, scraperTool, twitterTool } from '../tools';
 import { z } from 'zod';
 
 export const glitchAgent = new Agent({
