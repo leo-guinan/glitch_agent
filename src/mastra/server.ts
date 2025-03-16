@@ -1,7 +1,7 @@
 import express, { Request, Response, Router, RequestHandler } from 'express';
-import { validateApiKey, loadApiKeys } from './middleware/auth';
-import { mastra } from './index';
-import { twitterAuthRouter } from './routes/twitter-auth';
+import { validateApiKey, loadApiKeys } from './middleware/auth.js';
+import { mastra } from './index.js';
+import { twitterAuthRouter } from './routes/twitter-auth.js';
 
 // API request interfaces
 interface GenerateRequest {
