@@ -50,6 +50,15 @@ jobs:
             -t ${IMAGE_TAG} .
           docker push ${IMAGE_TAG}
 
+      - name: Setup SSH Keys
+        run: |
+          # Generate SSH key
+          ssh-keygen -t rsa -b 4096 -C "${{ secrets.GCP_SA_EMAIL }}" -f ~/.ssh/google_compute_engine -N ""
+          
+          # Get the OS Login username
+          OSLOGIN_USER=$(gcloud beta compute os-login describe-profile --format='value(posixAccounts.username)')
+          echo "OSLOGIN_USER=$OSLOGIN_USER" >> $GITHUB_ENV
+
       - name: Generate Deploy Script
         run: |
           cat > deploy.sh << 'EOF'
@@ -121,34 +130,26 @@ jobs:
 
       - name: Deploy to Instance
         run: |
-          # Get the OS Login username for the service account
-          SA_EMAIL=${{ secrets.GCP_SA_EMAIL }}
-          SA_USERNAME="sa_$(echo $SA_EMAIL | cut -d@ -f1)"
-          
           # Copy deploy script
           gcloud beta compute scp --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            deploy.sh ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
+            deploy.sh ${OSLOGIN_USER}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
           gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
+            ${OSLOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
-          # Get the OS Login username for the service account
-          SA_EMAIL=${{ secrets.GCP_SA_EMAIL }}
-          SA_USERNAME="sa_$(echo $SA_EMAIL | cut -d@ -f1)"
-          
           # Wait for instance to be reachable
           for i in {1..10}; do
             if gcloud beta compute ssh --quiet \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
-              ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
+              ${OSLOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -160,5 +161,5 @@ jobs:
           gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            ${SA_USERNAME}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
+            ${OSLOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
           exit 1 
