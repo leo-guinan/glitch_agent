@@ -121,23 +121,36 @@ jobs:
 
       - name: Deploy to Instance
         run: |
+          # Configure gcloud for OS Login
+          gcloud config set compute/zone ${{ env.GCP_ZONE }}
+          gcloud config set project ${{ env.GCP_PROJECT_ID }}
+          
+          # Get OS Login user
+          OS_LOGIN_USER=$(gcloud compute os-login describe-profile --format='get(posixAccounts[0].username)')
+          
           # Copy deploy script
           gcloud compute scp --quiet \
             --zone=${{ env.GCP_ZONE }} \
-            deploy.sh ${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
+            --tunnel-through-iap \
+            deploy.sh ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
           gcloud compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
-            ${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
+            --tunnel-through-iap \
+            ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
+          # Get OS Login user
+          OS_LOGIN_USER=$(gcloud compute os-login describe-profile --format='get(posixAccounts[0].username)')
+          
           # Wait for instance to be reachable
           for i in {1..10}; do
             if gcloud compute ssh --quiet \
               --zone=${{ env.GCP_ZONE }} \
-              ${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
+              --tunnel-through-iap \
+              ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -148,5 +161,6 @@ jobs:
           echo "Failed to verify deployment"
           gcloud compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
-            ${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
+            --tunnel-through-iap \
+            ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
           exit 1 
