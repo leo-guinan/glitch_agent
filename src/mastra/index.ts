@@ -1,7 +1,7 @@
 import { Mastra } from '@mastra/core/mastra';
 import { createLogger } from '@mastra/core/logger';
-import { glitchWorkflow } from './workflows';
-import { glitchAgent } from './agents';
+import { glitchWorkflow } from './workflows/index';
+import { glitchAgent } from './agents/index';
 import { GCPDeployer } from './gcp-deployer';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
