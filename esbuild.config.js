@@ -9,8 +9,29 @@ await esbuild.build({
   outdir: 'dist',
   sourcemap: true,
   external: [
+    // Node.js built-in modules
+    'path',
+    'fs',
+    'crypto',
+    'util',
+    'stream',
+    'events',
+    'http',
+    'https',
+    'net',
+    'tls',
+    'os',
+    'child_process',
+    // External packages
     '@mastra/core/*',
     'dotenv',
-    'path',
+    'express',
+    'body-parser',
+    'zod',
+    'openai',
+    'twitter-api-v2',
+    '@upstash/redis',
+    '@ai-sdk/openai',
+    'loops',
   ]
 }); 
