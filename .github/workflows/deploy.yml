@@ -121,36 +121,36 @@ jobs:
 
       - name: Deploy to Instance
         run: |
-          # Configure gcloud for OS Login
+          # Configure gcloud
           gcloud config set compute/zone ${{ env.GCP_ZONE }}
           gcloud config set project ${{ env.GCP_PROJECT_ID }}
           
-          # Get OS Login user
-          OS_LOGIN_USER=$(gcloud beta compute os-login describe-profile --format='get(posixAccounts[0].username)')
+          # Get instance service account email
+          INSTANCE_SA="635202209750-compute@developer.gserviceaccount.com"
           
           # Copy deploy script
           gcloud beta compute scp --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            deploy.sh ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
+            deploy.sh ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
           gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
+            ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
-          # Get OS Login user
-          OS_LOGIN_USER=$(gcloud beta compute os-login describe-profile --format='get(posixAccounts[0].username)')
+          # Get instance service account email
+          INSTANCE_SA="635202209750-compute@developer.gserviceaccount.com"
           
           # Wait for instance to be reachable
           for i in {1..10}; do
             if gcloud beta compute ssh --quiet \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
-              ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
+              ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -162,5 +162,5 @@ jobs:
           gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            ${OS_LOGIN_USER}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
+            ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
           exit 1 
