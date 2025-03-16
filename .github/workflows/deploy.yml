@@ -125,32 +125,26 @@ jobs:
           gcloud config set compute/zone ${{ env.GCP_ZONE }}
           gcloud config set project ${{ env.GCP_PROJECT_ID }}
           
-          # Get instance service account email
-          INSTANCE_SA="635202209750-compute@developer.gserviceaccount.com"
-          
-          # Copy deploy script
+          # Copy deploy script using your account
           gcloud beta compute scp --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            deploy.sh ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
+            deploy.sh leo@${{ env.GCP_INSTANCE_NAME }}:~/deploy.sh
           
           # Execute deploy script
           gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
+            leo@${{ env.GCP_INSTANCE_NAME }} -- 'bash ~/deploy.sh'
 
       - name: Verify Deployment
         run: |
-          # Get instance service account email
-          INSTANCE_SA="635202209750-compute@developer.gserviceaccount.com"
-          
           # Wait for instance to be reachable
           for i in {1..10}; do
             if gcloud beta compute ssh --quiet \
               --zone=${{ env.GCP_ZONE }} \
               --tunnel-through-iap \
-              ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
+              leo@${{ env.GCP_INSTANCE_NAME }} -- 'curl -s http://localhost:4111/health'; then
               echo "Deployment verified successfully"
               exit 0
             fi
@@ -162,5 +156,5 @@ jobs:
           gcloud beta compute ssh --quiet \
             --zone=${{ env.GCP_ZONE }} \
             --tunnel-through-iap \
-            ${INSTANCE_SA%@*}@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
+            leo@${{ env.GCP_INSTANCE_NAME }} -- 'sudo docker logs mastra-app'
           exit 1 
